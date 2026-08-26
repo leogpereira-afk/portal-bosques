@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Portal dos Bosques · Gestão do Loteamento</title>
+  <meta name="theme-color" content="#0E532B">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="casca">
+    <aside id="lateral"></aside>
+    <div id="palco">
+      <header id="topo"></header>
+      <main id="app"><div class="vazio"><span class="icone">🌳</span><b>carregando…</b></div></main>
+      <footer id="credito">developed by <span>Léo Gonçalves</span></footer>
+    </div>
+  </div>
+  <!-- ordem importa: ui.js declara TELAS; os módulos preenchem; app.js liga tudo -->
+  <script src="libs/jspdf.umd.min.js"></script>
+  <script src="config.js"></script>
+  <script src="ui.js"></script>
+  <script src="store.js"></script>
+  <script src="carne.js"></script>
+  <script src="pdf.js"></script>
+  <script src="espelho.js"></script>
+  <script src="vendas.js"></script>
+  <script src="caixa.js"></script>
+  <script src="cadastros.js"></script>
+  <script src="cronograma.js"></script>
+  <script src="apresentacao.js"></script>
+  <script src="contratos.js"></script>
+  <script src="omie.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

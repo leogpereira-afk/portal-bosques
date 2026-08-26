@@ -1,0 +1,22 @@
+# Projeto Supabase do Portal dos Bosques. "project_id" aqui é só um apelido
+# local usado pela CLI — não precisa bater com o Project Ref real.
+project_id = "bosques"
+
+# verify_jwt = false em TODAS: o navegador manda um preflight CORS (OPTIONS)
+# sem token, e o gateway do Supabase barraria antes de o código rodar. A
+# autorização é feita DENTRO de cada função (x-token + x-senha). Trocar isso
+# para true derruba o app inteiro.
+[functions.bsq-nucleo]
+verify_jwt = false
+
+[functions.bsq-acervo]
+verify_jwt = false
+
+# A landing pública da proposta (link do WhatsApp) — sem token nenhum, a chave
+# é o token sorteado por proposta, dentro do próprio link.
+[functions.bsq-p]
+verify_jwt = false
+
+# Roda sozinha pelo pg_cron: a entrada é o ROTINA_TOKEN, conferido dentro.
+[functions.bsq-rotina]
+verify_jwt = false
