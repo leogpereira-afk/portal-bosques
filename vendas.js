@@ -175,7 +175,18 @@ TELAS.vendas = function () {
     const pct = r.total > 0 ? Math.round(r.pago / r.total * 100) : 0;
     return '<div class="lin' + (v.situacao === 'distratada' ? ' riscada' : '') + '" data-id="' + esc(v.id) + '">' +
       '<div class="cresce"><b>Q' + v.quadra + '-L' + v.lote + ' · ' + esc(v.clienteNome || '?') + '</b>' +
-      '<span class="sub">' + esc(v.codigo || '') + (v.corretorNome ? ' · ' + esc(v.corretorNome) : '') +
+      /* A DATA DO FECHAMENTO ABRE A LINHA, e não vai no fim: dentro de um mês
+         com 14 vendas, é ela que responde "qual veio primeiro". No fim da
+         frase, atrás do valor, ninguém varre uma coluna com o olho.
+
+         `dataVenda` e SÓ ela. O agrupamento por mês aceita `criadoEm` como
+         reserva, mas aqui isso seria mentira: criadoEm de 2 vendas é a data da
+         IMPORTAÇÃO da planilha, não do fechamento. fmt.data devolve travessão
+         quando falta — e travessão é a resposta certa, com o motivo no title. */
+      '<span class="sub">' +
+        '<span class="tnum"' + (v.dataVenda ? '' : ' title="Esta venda veio da importação da planilha sem data de fechamento — o mês dela na lista saiu da data de importação."') + '>' +
+          fmt.data(v.dataVenda) + '</span> · ' +
+        esc(v.codigo || '') + (v.corretorNome ? ' · ' + esc(v.corretorNome) : '') +
         ' · pagou ' + pct + '% (' + fmt.brl(r.pago) + ' de ' + fmt.brl(r.total) + ')</span></div>' +
       (r.qtdAtraso > 0 && ['ativa', 'conferir'].includes(v.situacao || 'ativa')
         ? botaoCobranca(v, r, true) + '<span class="etiqueta et-atrasada">' + r.qtdAtraso + ' atrasada' + (r.qtdAtraso > 1 ? 's' : '') + ' · ' + fmt.brl(r.emAtraso) + '</span>'
@@ -197,7 +208,23 @@ TELAS.vendas = function () {
   const mesesVenda = Object.keys(porMesVenda).sort().reverse();   // o mais novo em cima
   const maiorVgvMes = Math.max(1, ...mesesVenda.map((m) => porMesVenda[m].vgv));
   TELAS._mesesVdAbertos = TELAS._mesesVdAbertos || new Set();
-  const ordenaAtraso = (a, b) => (b.r.emAtraso - a.r.emAtraso) || String(b.v.criadoEm || '').localeCompare(a.v.criadoEm || '');
+  /* DENTRO DO MÊS, A ORDEM É A DO FECHAMENTO — esta lista é a linha do tempo
+     ("Vendas mês a mês"), e o mês mais novo já vem em cima. Ordenar por atraso
+     aqui embaralhava as datas e a coluna não se lia como ordem nenhuma.
+
+     Quem está atrás de atraso tem os caminhos próprios: o cartão "Em atraso",
+     o filtro "só atraso" e o "Cobrar em série". A etiqueta vermelha continua em
+     cada linha, então nada some — só deixa de mandar na ordem de uma lista que
+     existe para contar a história do mês. Sem data cai no fim, nunca no topo:
+     ausência não disputa primeiro lugar. */
+  const ordenaFechamento = (a, b) => {
+    const da = String(a.v.dataVenda || '');
+    const db = String(b.v.dataVenda || '');
+    if (!da && !db) return String(b.v.criadoEm || '').localeCompare(a.v.criadoEm || '');
+    if (!da) return 1;
+    if (!db) return -1;
+    return db.localeCompare(da) || String(b.v.criadoEm || '').localeCompare(a.v.criadoEm || '');
+  };
   const cartaoMensal =
     '<div class="cartao" style="padding:12px 16px"><h2>📈 Vendas mês a mês <span class="nota">— clique no mês para abrir o que vendeu nele</span></h2>' +
     mesesVenda.map((m) => {
@@ -210,7 +237,7 @@ TELAS.vendas = function () {
             '<span style="display:block;width:' + Math.round(b.vgv / maiorVgvMes * 100) + '%;height:100%;background:var(--verde)"></span></span></span>' +
           '<b style="white-space:nowrap">' + fmt.brl(b.vgv) + '</b>' +
         '</summary>' +
-        '<div style="padding:8px 0 10px">' + b.itens.sort(ordenaAtraso).map(linhaVenda).join('') + '</div>' +
+        '<div style="padding:8px 0 10px">' + b.itens.sort(ordenaFechamento).map(linhaVenda).join('') + '</div>' +
         '</details>';
     }).join('') +
     '<div style="display:flex;gap:10px;padding:10px 2px 2px;font-weight:800"><span style="min-width:74px">TOTAL</span>' +

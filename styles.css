@@ -254,3 +254,8 @@ button { font-family: inherit; }
   .cartao { border: 0; box-shadow: none; }
   body { background: #fff; }
 }
+
+/* A data do fechamento na lista de vendas: dígitos de largura fixa fazem as
+   datas formarem coluna, e é a coluna que se lê como ordem. Sem isto, "1" e
+   "8" ocupam larguras diferentes e a varredura com o olho não acontece. */
+.lin .sub .tnum { font-variant-numeric: tabular-nums; }

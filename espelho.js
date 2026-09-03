@@ -76,6 +76,82 @@ function lotesComAtraso() {
 }
 
 /* ── Tela: espelho ─────────────────────────────────────────────────────────── */
+/* O LINK DO ESPELHO PARA O CORRETOR.
+ *
+ * Ele abre a tabela de lotes e imprime em PDF. Não edita nada — e a garantia
+ * disso não é botão escondido: o link não leva ao painel, leva a uma página
+ * que faz UMA leitura e mais nada (espelho-publico.html + a rota bsq-p/espelho).
+ *
+ * O QUE O CORRETOR VÊ: quadra, lote, metragem, preço do que está DISPONÍVEL, e
+ * "Vendido"/"Reservado" no resto. O que NÃO vê, de propósito, porque link vai
+ * para o WhatsApp e é encaminhável: o nome de quem reservou (que o espelho
+ * interno mostra), o VGV, a soma em tabela e os lotes em atraso.
+ *
+ * TROCAR O LINK DERRUBA OS ANTIGOS. É o que se quer quando um corretor sai da
+ * equipe — e por isso o aviso diz isso com todas as letras antes de trocar.
+ */
+function abrirLinkEspelho() {
+  const base = location.origin + location.pathname.replace(/[^/]*$/, '') + 'espelho-publico.html';
+  const token = (S.cfg && S.cfg.espelhoToken) || '';
+  const link = token ? base + '#' + token : '';
+
+  const gerar = async (trocando) => {
+    /* 24 caracteres do gerador do NAVEGADOR (crypto), não Math.random: token
+       de acesso sorteado por gerador previsível é token adivinhável. */
+    const b = new Uint8Array(18);
+    crypto.getRandomValues(b);
+    const novo = Array.from(b).map((x) => 'abcdefghijkmnpqrstuvwxyz23456789'[x % 32]).join('');
+    try {
+      /* salvarCfg mescla no topo (bsq-nucleo): mandar só esta chave preserva
+         empresa, reajuste e o resto. Conferido antes de escrever. */
+      const r = await api('salvarCfg', { cfg: { espelhoToken: novo } });
+      S.cfg = { ...S.cfg, ...r.cfg };
+      gravarCache();
+      fecharModal();
+      toast(trocando ? 'Link novo gerado — os antigos pararam de valer' : 'Link gerado');
+      abrirLinkEspelho();
+    } catch (e) {
+      toast('Não consegui gravar: ' + (e.message || 'erro'), 'erro');
+    }
+  };
+
+  if (!token) {
+    abrirModal({
+      titulo: 'Link do espelho para o corretor',
+      corpo: '<p>Ainda não há link. Ao gerar, qualquer pessoa com ele abre a tabela de lotes ' +
+        'e imprime em PDF — <b>sem entrar no sistema e sem poder alterar nada</b>.</p>' +
+        '<p class="nota">Ele mostra quadra, lote, metragem e o preço do que está disponível. ' +
+        'Não mostra nome de cliente, quem reservou, VGV nem lotes em atraso.</p>',
+      acoes: [
+        { texto: 'Gerar link', classe: 'primario', aoClicar: () => gerar(false) },
+        { texto: 'Fechar', aoClicar: () => fecharModal() },
+      ],
+    });
+    return;
+  }
+
+  abrirModal({
+    titulo: 'Link do espelho para o corretor',
+    corpo: '<p class="nota">Mande este link. Quem abrir vê a tabela de lotes e imprime em PDF, ' +
+      'sem entrar no sistema e sem poder alterar nada.</p>' +
+      '<input class="campo" readonly value="' + esc(link) + '" ' +
+      'onclick="this.select()" style="width:100%;font-family:ui-monospace,monospace;font-size:13px">' +
+      '<p class="nota" style="margin-top:10px">Ele NÃO mostra nome de cliente, quem reservou, ' +
+      'VGV nem lotes em atraso. <b>Gerar um link novo derruba este</b> — use quando alguém sair da equipe.</p>',
+    acoes: [
+      { texto: 'Copiar link', classe: 'primario', aoClicar: () => {
+        if (navigator.clipboard) navigator.clipboard.writeText(link);
+        toast('Link copiado');
+      } },
+      { texto: 'Abrir', aoClicar: () => window.open(link, '_blank', 'noopener') },
+      { texto: 'Gerar link novo', aoClicar: () => {
+        if (confirm('Gerar um link novo faz o atual parar de funcionar para todo mundo que já o recebeu. Continuar?')) gerar(true);
+      } },
+      { texto: 'Fechar', aoClicar: () => fecharModal() },
+    ],
+  });
+}
+
 TELAS.espelho = function () {
   const app = document.getElementById('app');
   const ls = lotes();
@@ -135,6 +211,9 @@ TELAS.espelho = function () {
       '<img src="icons/logo-full.png" alt="Portal dos Bosques" style="height:58px;max-width:52%;object-fit:contain">' +
       '<div style="display:flex;gap:8px">' +
         (ehCorretorPerfil() ? '' : '<button class="btn mini" id="esp-novo-lote" style="background:rgba(255,255,255,.14);border-color:transparent;color:#eaf3ec">+ Lote</button>') +
+        /* SÓ A DIREÇÃO GERA O LINK. Escritório e corretor não: quem cria um
+           acesso que sai da casa tem de ser quem responde por ele. */
+        (S.perfil === 'direcao' ? '<button class="btn mini" id="esp-link" style="background:rgba(255,255,255,.14);border-color:transparent;color:#eaf3ec">🔗 Link do corretor</button>' : '') +
         '<button class="btn mini" id="esp-pdf" style="background:var(--verde-claro);border-color:var(--verde-claro);color:#123018">📄 PDF do espelho</button>' +
       '</div>' +
     '</div>' +
@@ -199,6 +278,8 @@ TELAS.espelho = function () {
   });
   const chAtr = document.querySelector('.esp-chip-atraso');
   if (chAtr) chAtr.onclick = () => { filtro.atraso = !filtro.atraso; TELAS.espelho(); };
+  const btLink = document.getElementById('esp-link');
+  if (btLink) btLink.onclick = abrirLinkEspelho;
   document.querySelectorAll('.lote-q').forEach((el) => {
     el.onclick = () => { location.hash = '#/lote/' + el.dataset.id; };
   });

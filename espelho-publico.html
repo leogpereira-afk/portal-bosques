@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Espelho de vendas</title>
+<!--
+  ESPELHO PÚBLICO — a página que o corretor abre pelo link.
+
+  MORA AQUI, NO GITHUB PAGES, E NÃO NA EDGE FUNCTION. O gateway do Supabase
+  reescreve toda resposta text/html para text/plain e ainda manda
+  "content-security-policy: sandbox": página servida de lá chega na tela do
+  corretor como código-fonte. Medido em 03/09/2026.
+
+  O TOKEN VIAJA NO # DA URL, não em ?query. O que está depois do # não é
+  enviado ao servidor nem entra em log de acesso e não vaza no Referer para
+  quem a página linkar. É a diferença entre um segredo que só o navegador vê e
+  um segredo que fica escrito no diário de todo mundo no caminho.
+
+  SÓ LEITURA POR CONSTRUÇÃO: esta página faz UM fetch de leitura e mais nada.
+  Não existe caminho de escrita para esquecer de fechar.
+-->
+<style>
+  :root{--verde:#2f7d3f;--verde-esc:#0f2417;--tinta:#16241a;--suave:#5d7364;
+        --linha:#dde6df;--fundo:#f6f9f6;--branco:#fff}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--fundo);color:var(--tinta);
+       font:16px/1.5 -apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+  .capa{background:var(--verde-esc);color:#eef5ef;padding:18px 20px}
+  .capa h1{margin:0;font-size:20px;letter-spacing:.04em}
+  .capa p{margin:4px 0 0;color:#a9c0ad;font-size:13px}
+  .folha{max-width:1100px;margin:0 auto;padding:16px 16px 60px}
+  .barra{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0}
+  .barra input,.barra select{padding:9px 12px;border:1px solid var(--linha);
+       border-radius:10px;font:inherit;background:var(--branco)}
+  .barra input{flex:1;min-width:180px}
+  .chip{border:1px solid var(--linha);background:var(--branco);border-radius:999px;
+       padding:8px 14px;font:inherit;cursor:pointer}
+  .chip[aria-pressed=true]{background:var(--verde);border-color:var(--verde);color:#fff;font-weight:600}
+  .btpdf{margin-left:auto;background:var(--verde);color:#fff;border:0;border-radius:10px;
+       padding:10px 16px;font:inherit;font-weight:600;cursor:pointer}
+  .resumo{display:flex;gap:18px;flex-wrap:wrap;color:var(--suave);font-size:14px}
+  .resumo b{color:var(--tinta);font-variant-numeric:tabular-nums}
+  .quadra{margin-top:22px}
+  .quadra h2{font-size:16px;margin:0 0 10px;border-bottom:1px solid var(--linha);padding-bottom:6px}
+  .nota{font-weight:400;color:var(--suave);font-size:13px}
+  .grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px}
+  .lote{border:1px solid var(--linha);border-radius:10px;padding:8px 6px;
+       text-align:center;background:var(--branco)}
+  .lote b{display:block;font-size:17px}
+  .lote .m2{display:block;font-size:11px;color:var(--suave)}
+  .lote .preco{display:block;font-size:12px;font-weight:700;margin-top:2px;
+       font-variant-numeric:tabular-nums}
+  .lote.disp{background:#eaf6ec;border-color:#c6e4cd}
+  .lote.disp .preco{color:var(--verde)}
+  .lote.vendido,.lote.reservado{opacity:.62}
+  .lote.vendido .preco,.lote.reservado .preco{color:var(--suave);font-weight:600}
+  .rodape{margin-top:34px;padding-top:14px;border-top:1px solid var(--linha);
+       color:var(--suave);font-size:13px}
+  .rodape a{color:var(--verde)}
+  .aviso{padding:34px 20px;text-align:center;color:var(--suave)}
+  .aviso b{display:block;color:var(--tinta);font-size:17px;margin-bottom:6px}
+  [hidden]{display:none!important}
+  @media print{
+    .barra,.naoimprime{display:none!important}
+    body{background:#fff}
+    .capa{background:#fff;color:var(--tinta);border-bottom:2px solid var(--verde);padding:0 0 10px}
+    .capa p{color:var(--suave)}
+    .folha{max-width:none;padding:0}
+    .quadra{break-inside:avoid}
+    .lote{border-color:#bbb}
+  }
+</style>
+</head>
+<body>
+<div class="capa"><h1 id="cap-nome">Espelho de vendas</h1><p id="cap-sub">Carregando…</p></div>
+<div class="folha">
+  <div id="conteudo" hidden>
+    <div class="resumo">
+      <span><b id="n-total">—</b> lotes</span>
+      <span><b id="n-disp">—</b> disponíveis</span>
+    </div>
+    <div class="barra">
+      <input id="q" type="search" placeholder="nº do lote…" aria-label="Procurar lote pelo número">
+      <select id="quadra" aria-label="Filtrar por quadra"><option value="">Todas as quadras</option></select>
+      <button class="chip" id="soDisp" type="button" aria-pressed="false">só disponíveis</button>
+      <button class="btpdf" id="pdf" type="button">Baixar PDF</button>
+    </div>
+    <div id="quadras"></div>
+    <p class="rodape">Tabela de referência. Disponibilidade e preço podem mudar sem aviso —
+      confirme <span id="rod-zap">com a equipe</span> antes de fechar negócio.
+      <span class="naoimprime">O botão <b>Baixar PDF</b> abre a impressão: escolha “Salvar como PDF”.</span></p>
+  </div>
+  <div id="aviso" class="aviso"><b>Abrindo o espelho…</b><span>um instante</span></div>
+</div>
+<script>
+(function () {
+  'use strict';
+  var API = 'https://reoghclxripktzpdwhiy.supabase.co/functions/v1/bsq-p/espelho/';
+  var el = function (id) { return document.getElementById(id); };
+
+  function avisar(titulo, texto) {
+    el('conteudo').hidden = true;
+    el('aviso').hidden = false;
+    el('aviso').innerHTML = '';
+    var b = document.createElement('b'); b.textContent = titulo;
+    var s = document.createElement('span'); s.textContent = texto || '';
+    el('aviso').appendChild(b); el('aviso').appendChild(s);
+    el('cap-sub').textContent = '';
+  }
+
+  var brl = function (n) {
+    return (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+  };
+  var m2 = function (n) {
+    n = Number(n) || 0;
+    return n ? n.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' m²' : '';
+  };
+
+  // O token vem do #, nunca de ?query — ver o comentário no topo do arquivo.
+  var token = (location.hash || '').replace(/^#/, '').trim();
+  if (!token) { avisar('Link incompleto', 'Peça o link de novo para a equipe.'); return; }
+
+  fetch(API + encodeURIComponent(token), { cache: 'no-store' })
+    .then(function (r) {
+      if (r.status === 403) throw new Error('Este link não vale mais. Peça um novo para a equipe.');
+      if (r.status === 404) throw new Error('O espelho público não está ligado.');
+      if (!r.ok) throw new Error('Não consegui abrir agora. Tente de novo em instantes.');
+      return r.json();
+    })
+    .then(desenhar)
+    .catch(function (e) { avisar('Não deu para abrir', e.message); });
+
+  function desenhar(d) {
+    var lotes = (d && d.lotes) || [];
+    var nome = (d && d.empresa && d.empresa.nome) || 'Espelho de vendas';
+    document.title = 'Espelho de vendas — ' + nome;
+    el('cap-nome').textContent = nome + ' · Espelho de vendas';
+    el('cap-sub').textContent = 'Atualizado em ' + new Date(d.geradoEm || Date.now()).toLocaleDateString('pt-BR') +
+      ' — os valores podem mudar; confirme antes de fechar.';
+
+    var zap = String((d.empresa && d.empresa.telefone) || '').replace(/\D/g, '');
+    if (zap) {
+      var a = document.createElement('a');
+      a.href = 'https://wa.me/' + (zap.length >= 12 ? zap : '55' + zap);
+      a.textContent = 'pelo WhatsApp';
+      el('rod-zap').textContent = ''; el('rod-zap').appendChild(a);
+    }
+
+    if (!lotes.length) { avisar('Nenhum lote cadastrado', 'Fale com a equipe.'); return; }
+
+    var quadras = [];
+    lotes.forEach(function (l) { if (quadras.indexOf(l.quadra) < 0) quadras.push(l.quadra); });
+    quadras.sort(function (a, b) { return a - b; });
+
+    var sel = el('quadra');
+    quadras.forEach(function (q) {
+      var o = document.createElement('option'); o.value = String(q); o.textContent = 'Quadra ' + q;
+      sel.appendChild(o);
+    });
+
+    var alvo = el('quadras');
+    quadras.forEach(function (q) {
+      var doQ = lotes.filter(function (l) { return l.quadra === q; })
+        .sort(function (a, b) { return (Number(a.lote) || 0) - (Number(b.lote) || 0); });
+      var sec = document.createElement('section');
+      sec.className = 'quadra'; sec.dataset.quadra = String(q);
+      var h = document.createElement('h2');
+      h.textContent = 'Quadra ' + q + ' ';
+      var nota = document.createElement('span'); nota.className = 'nota';
+      nota.textContent = '· ' + doQ.filter(function (l) { return l.status === 'Disponível'; }).length +
+        ' de ' + doQ.length + ' disponíveis';
+      h.appendChild(nota); sec.appendChild(h);
+      var grade = document.createElement('div'); grade.className = 'grade';
+      doQ.forEach(function (l) {
+        var d2 = document.createElement('div');
+        d2.className = 'lote ' + (l.status === 'Vendido' ? 'vendido' : l.status === 'Reservado' ? 'reservado' : 'disp');
+        d2.dataset.status = l.status; d2.dataset.lote = String(l.lote);
+        var b = document.createElement('b'); b.textContent = l.lote;
+        var a2 = document.createElement('span'); a2.className = 'm2'; a2.textContent = m2(l.areaM2);
+        var p = document.createElement('span'); p.className = 'preco';
+        // Preço só existe no disponível — o servidor manda null nos outros.
+        p.textContent = l.preco == null ? l.status : brl(l.preco);
+        d2.appendChild(b); d2.appendChild(a2); d2.appendChild(p);
+        grade.appendChild(d2);
+      });
+      sec.appendChild(grade); alvo.appendChild(sec);
+    });
+
+    el('n-total').textContent = String(lotes.length);
+    el('aviso').hidden = true; el('conteudo').hidden = false;
+
+    var cards = [].slice.call(document.querySelectorAll('.lote'));
+    var secoes = [].slice.call(document.querySelectorAll('.quadra'));
+    function aplicar() {
+      var termo = (el('q').value || '').trim();
+      var qd = el('quadra').value;
+      var so = el('soDisp').getAttribute('aria-pressed') === 'true';
+      var visiveisDisp = 0, visiveis = 0;
+      secoes.forEach(function (sec) {
+        var algum = false;
+        [].slice.call(sec.querySelectorAll('.lote')).forEach(function (c) {
+          var ok = (!termo || c.dataset.lote.indexOf(termo) >= 0) &&
+                   (!qd || sec.dataset.quadra === qd) &&
+                   (!so || c.dataset.status === 'Disponível');
+          c.hidden = !ok;
+          if (ok) { algum = true; visiveis++; if (c.dataset.status === 'Disponível') visiveisDisp++; }
+        });
+        sec.hidden = !algum;
+      });
+      // Os contadores seguem o filtro: número que não acompanha a tela faz a
+      // pessoa desconfiar dos dois.
+      el('n-total').textContent = String(visiveis);
+      el('n-disp').textContent = String(visiveisDisp);
+    }
+    el('q').oninput = aplicar;
+    el('quadra').onchange = aplicar;
+    el('soDisp').onclick = function () {
+      this.setAttribute('aria-pressed', this.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
+      aplicar();
+    };
+    el('pdf').onclick = function () { window.print(); };
+    aplicar();
+  }
+})();
+</script>
+</body>
+</html>
