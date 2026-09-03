@@ -14,4 +14,4 @@ window.API_ARQ = window.API_BASE + '/pdb-acervo';
 window.API_OMIE = window.API_BASE + '/pdb-omie';
 window.P_URL = window.API_BASE + '/pdb-p'; // landing pública da proposta
 
-window.VERSAO = '1'; // suba a cada publicação, junto com o CACHE do sw.js
+window.VERSAO = '2'; // suba a cada publicação, junto com o CACHE do sw.js

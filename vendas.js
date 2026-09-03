@@ -12,6 +12,18 @@
  *     SERVIDOR, nunca pela tela.
  */
 
+
+/* ARREDONDAR PARA ZERO SERIA MENTIR. Um loteamento no começo — ou qualquer mês
+   em que entrou pouco perto do VGV — cairia em "0% do VGV vendido" embaixo de
+   um valor que NÃO é zero. Zero é uma afirmação ("não entrou nada"), e ela
+   estaria ao lado da prova do contrário. Descoberto num teste com entrada
+   sintética, não na tela: com o dado real de hoje dá 8% e ninguém veria. */
+function pctRecebido(recebido, vgv) {
+  const p = recebido / vgv * 100;
+  if (p > 0 && p < 1) return 'menos de 1%';
+  return Math.round(p) + '%';
+}
+
 const vendasVivas = () => lista('venda').filter((v) => ['ativa', 'conferir'].includes(v.situacao || 'ativa'));
 
 /* resumoVenda mora no espelho.js: espelho do Omie manda; derivado é reserva. */
@@ -120,6 +132,29 @@ TELAS.vendas = function () {
   const recebidoMes = lista('rec').filter((r) => String(r.data || '').startsWith(mesStr))
     .reduce((s, r) => s + (Number(r.valor) || 0), 0);
 
+  /* O TOTAL RECEBIDO — todo o dinheiro que já entrou por venda, não só o do mês.
+     O cartão do mês responde "como estamos indo agora"; este responde "quanto do
+     que vendi já entrou", que é a pergunta de quem olha o VGV do lado.
+
+     E ELE DECLARA O QUE TEM DENTRO. Medido em 30/08/2026: de R$ 411.850
+     recebidos, R$ 195.839 — quase metade — estão em recebimentos com `vendaId`
+     VAZIO. São as baixas automáticas do Omie que nunca foram ligadas a um
+     contrato. O dinheiro entrou de verdade (por isso ele soma), mas não dá para
+     dizer de qual venda veio — e um número redondo embaixo do rótulo "de
+     vendas" seria lido como se desse. O mesmo vale para o cartão do mês: em
+     set/2026, R$ 2.000 dos R$ 5.882 não têm contrato.
+
+     Distratado CONTINUA somando: o dinheiro entrou no caixa e não voltou por
+     causa do distrato. Quem quer o VGV de pé olha o cartão do VGV, que exclui
+     distratada — são perguntas diferentes, e misturar as réguas faria os dois
+     números não conversarem. */
+  const recs = lista('rec');
+  const recebidoTotal = recs.reduce((s, r) => s + (Number(r.valor) || 0), 0);
+  const semContrato = recs.filter((r) => !String(r.vendaId || '').trim());
+  const semContratoTotal = semContrato.reduce((s, r) => s + (Number(r.valor) || 0), 0);
+  const semContratoMes = recs.filter((r) => String(r.data || '').startsWith(mesStr) && !String(r.vendaId || '').trim())
+    .reduce((s, r) => s + (Number(r.valor) || 0), 0);
+
   const filtradas = linhas.filter(({ v, r }) => {
     if (filtro.sit && (v.situacao || 'ativa') !== filtro.sit) return false;
     if (filtro.so === 'atraso' && !(r.qtdAtraso > 0 && ['ativa', 'conferir'].includes(v.situacao || 'ativa'))) return false;
@@ -192,7 +227,14 @@ TELAS.vendas = function () {
       '<div class="painel clicavel" id="pn-atraso"><div class="rot">Em atraso</div><div class="num' + (emAtraso.length ? ' neg' : ' pos') + '">' + emAtraso.length + '</div>' +
         '<div class="sub">' + fmt.brl(totalAtraso) + ' vencidos</div></div>' +
       '<div class="painel clicavel" data-pv="recebido"><div class="rot">Recebido de vendas · ' + nomeMes(mesStr) + '</div><div class="num pos">' + fmt.brl(recebidoMes) + '</div>' +
-        '<div class="sub">só parcelas e entradas; o Caixa soma tudo</div></div>' +
+        '<div class="sub">só parcelas e entradas; o Caixa soma tudo' +
+          (semContratoMes > 0 ? '<br>⚠ ' + fmt.brl(semContratoMes) + ' sem contrato ligado' : '') + '</div></div>' +
+      /* O TOTAL fica ENCOSTADO no cartão do mês, e não ao lado do VGV: os dois
+         falam de dinheiro que entrou, e a leitura natural é comparar um com o
+         outro. Grudado no VGV, viraria uma subtração que ninguém pediu. */
+      '<div class="painel clicavel" data-pv="recebido-total"><div class="rot">Recebido de vendas · total</div><div class="num pos">' + fmt.brl(recebidoTotal) + '</div>' +
+        '<div class="sub">' + (vgv > 0 ? pctRecebido(recebidoTotal, vgv) + ' do VGV vendido' : 'sem VGV para comparar') +
+          (semContratoTotal > 0 ? '<br>⚠ ' + fmt.brl(semContratoTotal) + ' sem contrato ligado' : '') + '</div></div>' +
       '<div class="painel clicavel" data-pv="quitada"><div class="rot">Quitadas</div><div class="num">' + todas.filter((v) => v.situacao === 'quitada').length + '</div></div>' +
     '</div>' +
     '<div class="filtros">' +
@@ -218,6 +260,10 @@ TELAS.vendas = function () {
       if (pv === 'todas') { TELAS._fVendas = { q: '', sit: '', so: '' }; TELAS.vendas(); }
       else if (pv === 'quitada') { TELAS._fVendas = { q: '', sit: 'quitada', so: '' }; TELAS.vendas(); }
       else if (pv === 'recebido') { TELAS._fLanc = { q: '', tipo: 'entrada', cat: '', mes: mesDe(hojeISO()) }; location.hash = '#/lancamentos'; }
+      // O total abre a MESMA tela sem recorte de mês — senão o clique levaria a
+      // um número diferente do que estava no cartão, que é como se desconfia de
+      // um sistema inteiro.
+      else if (pv === 'recebido-total') { TELAS._fLanc = { q: '', tipo: 'entrada', cat: '', mes: '' }; location.hash = '#/lancamentos'; }
     };
   });
   document.getElementById('vd-pdf').onclick = () => {
