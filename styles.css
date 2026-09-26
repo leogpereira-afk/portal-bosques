@@ -259,3 +259,37 @@ button { font-family: inherit; }
    datas formarem coluna, e é a coluna que se lê como ordem. Sem isto, "1" e
    "8" ocupam larguras diferentes e a varredura com o olho não acontece. */
 .lin .sub .tnum { font-variant-numeric: tabular-nums; }
+
+/* Lateral no padrão da Central do Léo: fundo claro, 218px fixos, item ativo com a
+   barra da marca. Só no computador; o menu de baixo do celular segue como estava. */
+@media (min-width: 861px) {
+  #lateral {
+    width: 218px; flex: 0 0 218px; padding: 18px 12px; background: var(--cartao); color: var(--tinta);
+    border-right: 1px solid var(--borda); position: sticky; top: 0; height: 100vh; overflow-y: auto; scrollbar-width: thin;
+  }
+  #lateral .marca { padding: 0 8px 14px; gap: 9px; }
+  #lateral .marca img { width: 38px; height: 38px; flex: 0 0 38px; object-fit: contain; }
+  #lateral .marca b { font-size: 14px; line-height: 1.25; letter-spacing: -.025em; color: var(--tinta); }
+  #lateral .marca span { margin-top: 3px; color: var(--tinta-fraca); }
+  #menu { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 0; }
+  #menu .grupo { margin: 14px 10px 4px; padding: 0; font-size: 10px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--tinta-fraca); }
+  #menu .grupo:first-child { margin-top: 2px; }
+  #menu a {
+    display: flex; align-items: center; gap: 9px; width: 100%; margin: 0; padding: 7px 10px; min-height: 36px;
+    border-radius: 10px; font-size: 13px; font-weight: 500; line-height: 1.3; color: var(--tinta-fraca);
+    text-align: left; transition: background .15s, color .15s;
+  }
+  #menu a:hover:not(.on) { background: var(--fundo); color: var(--tinta); }
+  #menu a.on { background: var(--verde-palido); color: var(--verde); font-weight: 600; box-shadow: inset 3px 0 var(--verde); }
+  #menu a .ic { width: 20px; flex: 0 0 20px; display: flex; justify-content: center; font-size: 15px; }
+  #menu a .selo { margin-left: auto; }
+  #rodape-lateral { margin-top: 14px; padding: 14px 10px 0; border-top: 1px solid var(--borda); color: var(--tinta-fraca); font-size: 12px; }
+  #rodape-lateral button {
+    flex: 1 1 auto; white-space: nowrap; background: var(--cartao); border: 1px solid var(--borda); border-radius: 10px;
+    color: var(--tinta); min-height: 36px; font-size: 12px; transition: background .15s;
+  }
+  #rodape-lateral button:hover { background: var(--fundo); }
+}
+@media (min-width: 861px) and (pointer: coarse) {
+  #menu a, #rodape-lateral button { min-height: 44px; }
+}
