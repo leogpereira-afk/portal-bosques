@@ -349,8 +349,8 @@ async function puxar() {
 }
 
 /* ── Arquivos grandes (projetos, documentos, fotos) ────────────────────────── */
-// 2,5MB por pedaço: em base64 vira ~3,4MB, com folga no limite de 6MB
-// que a Function do Netlify aceita por requisição.
+// 2,5MB por pedaço: em base64 vira ~3,4MB, com folga no limite de corpo que
+// a Edge Function do acervo (pdb-acervo) aceita por requisição.
 const TAM_PARTE = 2.5 * 1024 * 1024;
 
 function bytesParaBase64(buf) {
